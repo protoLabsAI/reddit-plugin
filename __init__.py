@@ -50,8 +50,7 @@ def register(registry):
     else:
         log.warning(
             "Reddit plugin: no credentials configured — tools disabled. "
-            "Set reddit_client_id, reddit_client_secret, reddit_username, "
-            "reddit_password in secrets.yaml."
+            "Set credentials in Settings \u25b8 Reddit."
         )
 
     # ── Console view ────────────────────────────────────────────

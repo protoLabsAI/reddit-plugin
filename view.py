@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 VIEW_HTML = Path(__file__).parent / "view.html"
 
 
-def make_routers(api, config: dict):
+def make_routers(api, config: dict, host=None):
     """Create the page (public) and data (gated) routers."""
 
     page = APIRouter()
@@ -46,7 +46,7 @@ def make_routers(api, config: dict):
         """Return subreddit feed posts as JSON (paginated)."""
         if not api:
             return JSONResponse(
-                {"error": "Reddit not configured — add credentials to secrets.yaml"},
+                {"error": "Reddit not configured — set credentials in Settings \u25b8 Reddit."},
                 status_code=503,
             )
         sub = subreddit or "+".join(config.get("subreddits", ["all"]))

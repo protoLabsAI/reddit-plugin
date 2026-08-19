@@ -45,7 +45,6 @@ def test_manifest_view_path():
     views = manifest["views"]
     assert len(views) >= 1
     assert views[0]["path"] == "/plugins/reddit/feed"
-    # View page must NOT be under /api (it's an iframe page-load)
     assert not views[0]["path"].startswith("/api")
 
 
@@ -56,3 +55,34 @@ def test_manifest_config_defaults():
     assert isinstance(cfg.get("subreddits"), list)
     assert cfg.get("default_sort") in ("hot", "new", "top", "rising", "controversial")
     assert isinstance(cfg.get("posts_per_page"), int)
+
+
+def test_manifest_settings_fields():
+    """Settings declares UI fields for all config + secret keys."""
+    manifest = yaml.safe_load((ROOT / "protoagent.plugin.yaml").read_text())
+    settings = manifest.get("settings", [])
+    assert len(settings) >= 8, f"Expected at least 8 settings fields, got {len(settings)}"
+
+    keys = {s["key"] for s in settings}
+    # All secrets should have settings fields
+    for secret in manifest["secrets"]:
+        assert secret in keys, f"Secret {secret} missing from settings"
+    # Config keys should have settings fields
+    for config_key in ("subreddits", "default_sort", "posts_per_page", "time_filter"):
+        assert config_key in keys, f"Config key {config_key} missing from settings"
+
+
+def test_manifest_settings_types():
+    """Settings fields use valid types."""
+    manifest = yaml.safe_load((ROOT / "protoagent.plugin.yaml").read_text())
+    valid_types = {"string", "text", "number", "bool", "select", "string_list", "secret"}
+    for field in manifest.get("settings", []):
+        assert field["type"] in valid_types, f"Field {field['key']} has invalid type {field['type']}"
+
+
+def test_manifest_required_secrets():
+    """Secret settings are marked required."""
+    manifest = yaml.safe_load((ROOT / "protoagent.plugin.yaml").read_text())
+    for field in manifest.get("settings", []):
+        if field["type"] == "secret":
+            assert field.get("required") is True, f"Secret field {field['key']} should be required"

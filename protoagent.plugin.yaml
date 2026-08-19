@@ -18,6 +18,48 @@ secrets:
   - reddit_client_secret
   - reddit_username
   - reddit_password
+settings:
+  - key: reddit_client_id
+    label: "Client ID"
+    type: secret
+    required: true
+  - key: reddit_client_secret
+    label: "Client Secret"
+    type: secret
+    required: true
+  - key: reddit_username
+    label: "Reddit Username"
+    type: secret
+    required: true
+  - key: reddit_password
+    label: "Reddit Password"
+    type: secret
+    required: true
+  - key: subreddits
+    label: "Subreddits"
+    type: string_list
+  - key: default_sort
+    label: "Default Sort"
+    type: select
+    options:
+      - hot
+      - new
+      - top
+      - rising
+      - controversial
+  - key: posts_per_page
+    label: "Posts Per Page"
+    type: number
+  - key: time_filter
+    label: "Time Filter (for Top/Controversial)"
+    type: select
+    options:
+      - hour
+      - day
+      - week
+      - month
+      - year
+      - all
 capabilities:
   network: true
 views:

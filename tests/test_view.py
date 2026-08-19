@@ -53,7 +53,6 @@ class TestPageRoute:
         """View page must NOT be under /api (it's a public iframe page-load)."""
         resp = client.get("/plugins/reddit/feed")
         assert resp.status_code == 200
-        # The page should exist at the manifest-declared path
 
     def test_four_rules_slug_aware_base(self, client):
         """Rule 1/3: page derives base from location.pathname.split('/plugins/')."""
