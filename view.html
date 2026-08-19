@@ -257,6 +257,11 @@
     color: var(--pl-color-muted, #888);
   }
   .empty-icon { font-size: 32px; margin-bottom: 8px; }
+  .empty-hint {
+    font-size: 12px;
+    margin-top: 8px;
+    opacity: 0.7;
+  }
 
   .error {
     margin: 16px;
@@ -265,6 +270,25 @@
     color: #ff6b6b;
     border-radius: 8px;
     font-size: 13px;
+  }
+
+  .setup {
+    text-align: center;
+    padding: 64px 24px;
+    color: var(--pl-color-muted, #888);
+  }
+  .setup-icon { font-size: 40px; margin-bottom: 12px; }
+  .setup-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--pl-color-fg, #e0e0e0);
+    margin-bottom: 8px;
+  }
+  .setup-hint {
+    font-size: 13px;
+    line-height: 1.6;
+    max-width: 320px;
+    margin: 0 auto;
   }
 
   /* ── Refresh indicator ──────────────────────────────── */
@@ -319,10 +343,13 @@ const base = window.__base;
 const kit = await import(base + '/_ds/plugin-kit.js');
 kit.initPluginView();
 
+// ── Defaults ─────────────────────────────────────────
+const DEFAULTS = { subreddits: [], default_sort: 'hot', posts_per_page: 25 };
+
 // ── State ────────────────────────────────────────────
-let config = { subreddits: [], default_sort: 'hot', posts_per_page: 25 };
+let config = { ...DEFAULTS };
 let currentSub = '';   // '' = all configured
-let currentSort = '';
+let currentSort = 'hot';
 let afterCursor = null;
 let loading = false;
 let refreshTimer = null;
@@ -337,14 +364,46 @@ const refreshDot = document.getElementById('refreshDot');
 async function init() {
   try {
     const r = await kit.apiFetch('/api/plugins/reddit/config');
-    config = await r.json();
-    currentSort = config.default_sort || 'hot';
-    sortSelect.value = currentSort;
-    buildTabs();
-    await loadFeed();
+    if (r.ok) {
+      const data = await r.json();
+      // Merge with defaults — guard against missing/null fields
+      config = {
+        subreddits: Array.isArray(data?.subreddits) ? data.subreddits : DEFAULTS.subreddits,
+        default_sort: data?.default_sort || DEFAULTS.default_sort,
+        posts_per_page: data?.posts_per_page || DEFAULTS.posts_per_page,
+      };
+    }
   } catch (e) {
-    feedEl.innerHTML = `<div class="error">Failed to load config: ${e.message}</div>`;
+    // Config fetch failed — use defaults, don't crash
+    console.warn('Reddit config fetch failed, using defaults:', e);
   }
+
+  currentSort = config.default_sort;
+  sortSelect.value = currentSort;
+
+  // If no subreddits configured, show setup state
+  if (!config.subreddits.length) {
+    showSetup();
+    return;
+  }
+
+  buildTabs();
+  await loadFeed();
+}
+
+// ── Setup State ──────────────────────────────────────
+function showSetup() {
+  tabsEl.innerHTML = '';
+  feedEl.innerHTML = `
+    <div class="setup">
+      <div class="setup-icon">📡</div>
+      <div class="setup-title">Connect Reddit</div>
+      <div class="setup-hint">
+        Add your Reddit credentials and pick subreddits to follow
+        in <strong>Settings ▸ Reddit</strong>.
+      </div>
+    </div>
+  `;
 }
 
 // ── Tabs ─────────────────────────────────────────────
@@ -390,7 +449,12 @@ async function loadFeed(append = false) {
     const data = await r.json();
 
     if (data.error) {
-      feedEl.innerHTML = `<div class="error">${data.error}</div>`;
+      // Show a friendly message for the "not configured" case
+      if (r.status === 503) {
+        showSetup();
+      } else {
+        feedEl.innerHTML = `<div class="error">${esc(data.error)}</div>`;
+      }
       loading = false;
       return;
     }
@@ -400,7 +464,12 @@ async function loadFeed(append = false) {
     if (!append) feedEl.innerHTML = '';
     if (!data.posts || data.posts.length === 0) {
       if (!append) {
-        feedEl.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>No posts found</div>';
+        feedEl.innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">📭</div>
+            No posts found
+            <div class="empty-hint">Try a different sort or check your subreddit list.</div>
+          </div>`;
       }
       loading = false;
       return;
@@ -427,7 +496,7 @@ async function loadFeed(append = false) {
     }
   } catch (e) {
     if (!append) {
-      feedEl.innerHTML = `<div class="error">Failed to load feed: ${e.message}</div>`;
+      feedEl.innerHTML = `<div class="error">Failed to load feed: ${esc(e.message)}</div>`;
     }
   }
   loading = false;
@@ -488,6 +557,7 @@ function esc(s) {
 }
 
 function fmtNum(n) {
+  if (n == null) return '0';
   if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
   if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
   return String(n);
