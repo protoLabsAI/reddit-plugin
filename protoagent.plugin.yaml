@@ -1,0 +1,16 @@
+id: reddit
+name: reddit
+version: 0.1.0
+description: >-
+  Reddit integration — subreddit feed view + tools to read and interact with Reddit as the user.
+enabled: false
+config_section: reddit
+# Event bus (ADR 0039) — topics this plugin broadcasts / listens for (optional, for discovery).
+# An emits entry may also declare its payload shape (typed event contracts, #1636):
+# emits: ["reddit.something"]
+#   # - topic: reddit.something
+#   #   summary: One-line meaning of the event
+#   #   schema: {type: object}          # inline JSON Schema, or {$ref: events/foo.json}
+# subscribes: ["other-plugin.*"]
+views:
+  - { id: main, label: "reddit", icon: Boxes, path: /plugins/reddit/view }
