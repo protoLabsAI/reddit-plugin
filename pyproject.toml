@@ -1,13 +1,16 @@
 [project]
-name = "reddit"
-version = "0.1.0"            # keep in lockstep with protoagent.plugin.yaml
+name = "reddit-plugin"
+version = "0.1.0"
+description = "Reddit integration plugin for protoAgent"
 requires-python = ">=3.11"
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
-# asyncio_mode = "auto"     # uncomment with pytest-asyncio for async tests
+license = {text = "MIT"}
 
 [tool.ruff]
-line-length = 120
 target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

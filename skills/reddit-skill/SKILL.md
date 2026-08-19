@@ -1,10 +1,3 @@
----
-name: reddit-skill
-description: >-
-  Describe WHEN to use this skill (the trigger). Replace this with the cases that
-  should invoke reddit.
----
+# Skill: reddit-skill
 
-# reddit
-
-Replace this body with the procedure the agent should follow.
+This is a placeholder. See `reddit-researcher/SKILL.md` for the real skill.

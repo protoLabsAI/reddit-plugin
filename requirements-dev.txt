@@ -1,8 +1,10 @@
-# Test-only deps — the host (protoAgent) provides langchain-core + fastapi at
-# runtime; these let the suite run standalone in CI with no host.
-fastapi>=0.110
-langchain-core>=0.2
-pyyaml>=6
-httpx>=0.27
-pytest>=8
-# pytest-asyncio>=0.23   # uncomment if you add async tests (asyncio_mode below)
+# Host provides fastapi / langchain-core; list only what the TEST suite
+# needs beyond them.  Keep this lean — a fat dev-deps list is a code smell.
+fastapi>=0.100
+langchain-core>=0.1
+uvicorn
+httpx                # FastAPI TestClient transport
+pytest
+pytest-asyncio
+ruff
+requests             # Reddit API HTTP client (used by auth.py / api.py)

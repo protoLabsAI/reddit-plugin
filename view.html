@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reddit</title>
+<script>
+  window.__base = location.pathname.split('/plugins/')[0];
+  // DS kit CSS
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = window.__base + '/_ds/plugin-kit.css';
+  document.head.appendChild(link);
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--pl-color-bg, #0e0e10);
+    color: var(--pl-color-fg, #e0e0e0);
+    font-family: var(--pl-font-sans, system-ui, -apple-system, sans-serif);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--pl-color-bg, #0e0e10);
+    border-bottom: 1px solid var(--pl-color-border, #2a2a2e);
+    padding: 12px 16px;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header-title svg { width: 18px; height: 18px; opacity: 0.8; }
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  select {
+    background: var(--pl-color-surface, #1a1a1e);
+    color: var(--pl-color-fg, #e0e0e0);
+    border: 1px solid var(--pl-color-border, #2a2a2e);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+  }
+  select:focus { border-color: var(--pl-color-accent, #4a9eff); }
+
+  /* ── Tabs ───────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--pl-color-muted, #888);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .tab:hover {
+    color: var(--pl-color-fg, #e0e0e0);
+    background: var(--pl-color-surface, #1a1a1e);
+  }
+  .tab.active {
+    color: var(--pl-color-fg, #e0e0e0);
+    background: var(--pl-color-surface, #1a1a1e);
+    box-shadow: inset 0 -2px 0 var(--pl-color-accent, #4a9eff);
+  }
+
+  /* ── Feed Container ─────────────────────────────────── */
+  .feed { padding: 8px 0; }
+
+  /* ── Post Card ──────────────────────────────────────── */
+  .post {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--pl-color-border, #2a2a2e);
+    transition: background 0.1s ease;
+  }
+  .post:hover { background: var(--pl-color-surface, #1a1a1e); }
+
+  .post-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 40px;
+    padding-top: 2px;
+  }
+  .score-num {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pl-color-fg, #e0e0e0);
+  }
+  .score-arrow {
+    font-size: 10px;
+    color: var(--pl-color-muted, #888);
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.1s;
+    user-select: none;
+  }
+  .score-arrow:hover { color: var(--pl-color-accent, #4a9eff); }
+  .score-arrow.up:hover { color: #ff6314; }
+  .score-arrow.down:hover { color: #7193ff; }
+
+  .post-content { flex: 1; min-width: 0; }
+
+  .post-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--pl-color-muted, #888);
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .sub-badge {
+    background: var(--pl-color-surface, #1a1a1e);
+    color: var(--pl-color-accent, #4a9eff);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .flair-badge {
+    background: #2d1f3d;
+    color: #c49bff;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .nsfw-badge {
+    background: #3d1f1f;
+    color: #ff6b6b;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .stickied-badge {
+    background: #1f3d2d;
+    color: #6bffa0;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .post-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 4px;
+  }
+  .post-title a {
+    color: var(--pl-color-fg, #e0e0e0);
+    text-decoration: none;
+  }
+  .post-title a:hover { color: var(--pl-color-accent, #4a9eff); }
+
+  .post-preview {
+    font-size: 12px;
+    color: var(--pl-color-muted, #888);
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .post-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--pl-color-muted, #888);
+  }
+  .post-footer span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  /* ── Load More / States ─────────────────────────────── */
+  .load-more {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 12px 16px;
+    padding: 10px;
+    background: var(--pl-color-surface, #1a1a1e);
+    color: var(--pl-color-fg, #e0e0e0);
+    border: 1px solid var(--pl-color-border, #2a2a2e);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .load-more:hover {
+    background: var(--pl-color-border, #2a2a2e);
+    border-color: var(--pl-color-accent, #4a9eff);
+  }
+  .load-more:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .spinner {
+    display: flex;
+    justify-content: center;
+    padding: 32px;
+  }
+  .spinner::after {
+    content: '';
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--pl-color-border, #2a2a2e);
+    border-top-color: var(--pl-color-accent, #4a9eff);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--pl-color-muted, #888);
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+  .error {
+    margin: 16px;
+    padding: 12px;
+    background: #3d1f1f;
+    color: #ff6b6b;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  /* ── Refresh indicator ──────────────────────────────── */
+  .refresh-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--pl-color-muted, #888);
+    transition: background 0.3s;
+  }
+  .refresh-dot.active { background: #4ade80; animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Reddit
+    </div>
+    <div class="header-controls">
+      <div class="refresh-dot" id="refreshDot" title="Auto-refresh"></div>
+      <select id="refreshSelect" title="Auto-refresh interval">
+        <option value="0">Off</option>
+        <option value="30">30s</option>
+        <option value="60">1m</option>
+        <option value="300">5m</option>
+      </select>
+      <select id="sortSelect" title="Sort">
+        <option value="hot">Hot</option>
+        <option value="new">New</option>
+        <option value="top">Top</option>
+        <option value="rising">Rising</option>
+        <option value="controversial">Controversial</option>
+      </select>
+    </div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</div>
+
+<div id="feed" class="feed"></div>
+
+<script type="module">
+const base = window.__base;
+const kit = await import(base + '/_ds/plugin-kit.js');
+kit.initPluginView();
+
+// ── State ────────────────────────────────────────────
+let config = { subreddits: [], default_sort: 'hot', posts_per_page: 25 };
+let currentSub = '';   // '' = all configured
+let currentSort = '';
+let afterCursor = null;
+let loading = false;
+let refreshTimer = null;
+
+const feedEl = document.getElementById('feed');
+const tabsEl = document.getElementById('tabs');
+const sortSelect = document.getElementById('sortSelect');
+const refreshSelect = document.getElementById('refreshSelect');
+const refreshDot = document.getElementById('refreshDot');
+
+// ── Init ─────────────────────────────────────────────
+async function init() {
+  try {
+    const r = await kit.apiFetch('/api/plugins/reddit/config');
+    config = await r.json();
+    currentSort = config.default_sort || 'hot';
+    sortSelect.value = currentSort;
+    buildTabs();
+    await loadFeed();
+  } catch (e) {
+    feedEl.innerHTML = `<div class="error">Failed to load config: ${e.message}</div>`;
+  }
+}
+
+// ── Tabs ─────────────────────────────────────────────
+function buildTabs() {
+  tabsEl.innerHTML = '';
+  const allTab = mkTab('All', '');
+  allTab.classList.add('active');
+  tabsEl.appendChild(allTab);
+  for (const sub of config.subreddits) {
+    tabsEl.appendChild(mkTab(`r/${sub}`, sub));
+  }
+}
+
+function mkTab(label, sub) {
+  const btn = document.createElement('button');
+  btn.className = 'tab';
+  btn.textContent = label;
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    currentSub = sub;
+    afterCursor = null;
+    loadFeed();
+  });
+  return btn;
+}
+
+// ── Load Feed ────────────────────────────────────────
+async function loadFeed(append = false) {
+  if (loading) return;
+  loading = true;
+  if (!append) {
+    feedEl.innerHTML = '<div class="spinner"></div>';
+  }
+  try {
+    const params = new URLSearchParams();
+    if (currentSub) params.set('subreddit', currentSub);
+    if (currentSort) params.set('sort', currentSort);
+    params.set('limit', String(config.posts_per_page || 25));
+    if (append && afterCursor) params.set('after', afterCursor);
+
+    const r = await kit.apiFetch(`/api/plugins/reddit/feed?${params}`);
+    const data = await r.json();
+
+    if (data.error) {
+      feedEl.innerHTML = `<div class="error">${data.error}</div>`;
+      loading = false;
+      return;
+    }
+
+    afterCursor = data.after || null;
+
+    if (!append) feedEl.innerHTML = '';
+    if (!data.posts || data.posts.length === 0) {
+      if (!append) {
+        feedEl.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>No posts found</div>';
+      }
+      loading = false;
+      return;
+    }
+
+    for (const post of data.posts) {
+      feedEl.appendChild(renderPost(post));
+    }
+
+    // Remove old load-more button
+    const oldBtn = feedEl.querySelector('.load-more');
+    if (oldBtn) oldBtn.remove();
+
+    if (afterCursor) {
+      const btn = document.createElement('button');
+      btn.className = 'load-more';
+      btn.textContent = 'Load more';
+      btn.addEventListener('click', () => {
+        btn.disabled = true;
+        btn.textContent = 'Loading…';
+        loadFeed(true);
+      });
+      feedEl.appendChild(btn);
+    }
+  } catch (e) {
+    if (!append) {
+      feedEl.innerHTML = `<div class="error">Failed to load feed: ${e.message}</div>`;
+    }
+  }
+  loading = false;
+}
+
+// ── Render Post ──────────────────────────────────────
+function renderPost(p) {
+  const el = document.createElement('div');
+  el.className = 'post';
+
+  const age = timeAgo(p.created_utc);
+
+  let metaBadges = '';
+  if (!currentSub) {
+    metaBadges += `<span class="sub-badge">r/${esc(p.subreddit)}</span>`;
+  }
+  if (p.stickied) metaBadges += '<span class="stickied-badge">📌 Pinned</span>';
+  if (p.over_18) metaBadges += '<span class="nsfw-badge">NSFW</span>';
+  if (p.link_flair_text) metaBadges += `<span class="flair-badge">${esc(p.link_flair_text)}</span>`;
+
+  const preview = p.selftext ? `<div class="post-preview">${esc(p.selftext)}</div>` : '';
+
+  el.innerHTML = `
+    <div class="post-score">
+      <span class="score-arrow up" title="Upvote">▲</span>
+      <span class="score-num">${fmtNum(p.score)}</span>
+      <span class="score-arrow down" title="Downvote">▼</span>
+    </div>
+    <div class="post-content">
+      <div class="post-meta">
+        ${metaBadges}
+        <span>u/${esc(p.author)}</span>
+        <span>·</span>
+        <span>${age}</span>
+      </div>
+      <div class="post-title">
+        <a href="${esc(p.permalink)}" target="_blank" rel="noopener">${esc(p.title)}</a>
+      </div>
+      ${preview}
+      <div class="post-footer">
+        <span>💬 ${p.num_comments} comments</span>
+        <span>
+          <a href="${esc(p.permalink)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">
+            Open ↗
+          </a>
+        </span>
+      </div>
+    </div>
+  `;
+  return el;
+}
+
+// ── Helpers ──────────────────────────────────────────
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function fmtNum(n) {
+  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
+}
+
+function timeAgo(utc) {
+  if (!utc) return '';
+  const diff = Math.floor(Date.now() / 1000 - utc);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+  return Math.floor(diff / 604800) + 'w ago';
+}
+
+// ── Events ───────────────────────────────────────────
+sortSelect.addEventListener('change', () => {
+  currentSort = sortSelect.value;
+  afterCursor = null;
+  loadFeed();
+});
+
+refreshSelect.addEventListener('change', () => {
+  clearInterval(refreshTimer);
+  refreshTimer = null;
+  refreshDot.classList.remove('active');
+  const secs = parseInt(refreshSelect.value);
+  if (secs > 0) {
+    refreshDot.classList.add('active');
+    refreshTimer = setInterval(() => {
+      afterCursor = null;
+      loadFeed();
+    }, secs * 1000);
+  }
+});
+
+// ── Go ───────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

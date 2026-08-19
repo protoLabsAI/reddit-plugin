@@ -1,59 +1,71 @@
-"""reddit — a protoAgent plugin (scaffolded by plugin-devkit)."""
+"""reddit — Reddit integration for protoAgent."""
 
 from __future__ import annotations
 
-from langchain_core.tools import tool
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def register(registry):
-    """Wire this plugin's contributions into the agent (ADR 0018)."""
+    """Wire Reddit tools, view, and skill into the agent."""
 
-    @tool
-    def reddit_hello(name: str = "world") -> str:
-        """Say hello — replace with your tool's real work."""
-        return f"hello, {name}, from reddit"
-    registry.register_tool(reddit_hello)
+    # ── Config + secrets ────────────────────────────────────────
+    cfg = registry.config or {}
+    secrets: dict = {}
+    try:
+        host_cfg = registry.host.config()
+        secrets = host_cfg.get("secrets", {})
+    except Exception:
+        pass
 
-    from fastapi import APIRouter
-    from fastapi.responses import HTMLResponse, JSONResponse
-    router = APIRouter()
+    client_id = secrets.get("reddit_client_id", "")
+    client_secret = secrets.get("reddit_client_secret", "")
+    username = secrets.get("reddit_username", "")
+    password = secrets.get("reddit_password", "")
 
-    @router.get("/view")
-    async def _view():
-        # Four rules (ADR 0026/0038): serve the declared path · gate DATA (not the page)
-        # · slug-aware base · link the DS kit (CSS + JS). Untrusted/generated HTML → nest
-        # it in an <iframe sandbox="allow-scripts"> with NO same-origin.
-        return HTMLResponse(
-            "<!doctype html><html><head><meta charset='utf-8'>"
-            # Slug-aware base: "" on the host, "/agents/<slug>" through the fleet proxy.
-            "<script>window.__base=location.pathname.split('/plugins/')[0];"
-            "var l=document.createElement('link');l.rel='stylesheet';"
-            "l.href=window.__base+'/_ds/plugin-kit.css';document.head.appendChild(l);</script>"
-            "<style>body{margin:0;padding:32px;background:var(--pl-color-bg);"
-            "color:var(--pl-color-fg);font-family:var(--pl-font-sans,system-ui)}</style>"
-            "</head><body><h1>reddit</h1><p id='out'>Loading…</p>"
-            # plugin-kit.js is an ES module — a dynamic import() carries the slug-aware base.
-            # initPluginView() runs the token/theme handshake; apiFetch() is slug-aware AND
-            # attaches the bearer, so gated /api/plugins/reddit/* data loads under a token gate.
-            "<script type='module'>"
-            "const kit=await import(window.__base+'/_ds/plugin-kit.js');"
-            "kit.initPluginView();"
-            "const r=await kit.apiFetch('/api/plugins/reddit/hello');"
-            "document.getElementById('out').textContent=(await r.json()).message;"
-            "</script></body></html>"
+    # ── Auth + API client (lazy — constructed only when secrets present) ──
+    api = None
+    if all([client_id, client_secret, username, password]):
+        try:
+            from .auth import RedditAuth
+            from .api import RedditAPI
+
+            auth = RedditAuth(client_id, client_secret, username, password)
+            api = RedditAPI(auth)
+            log.info("Reddit API client initialized for u/%s", username)
+        except Exception:
+            log.exception("Failed to initialize Reddit API client")
+
+    # ── Tools (only if API is available) ────────────────────────
+    if api:
+        try:
+            from .tools import make_tools
+
+            tools = make_tools(api, cfg)
+            registry.register_tools(tools)
+            log.info("Registered %d Reddit tools", len(tools))
+        except Exception:
+            log.exception("Failed to register Reddit tools")
+    else:
+        log.warning(
+            "Reddit plugin: no credentials configured — tools disabled. "
+            "Set reddit_client_id, reddit_client_secret, reddit_username, "
+            "reddit_password in secrets.yaml."
         )
-    # Two-router pattern (ADR 0026): the PAGE is PUBLIC (an iframe page-load can't carry a
-    # bearer), so it mounts under /plugins/reddit; its DATA is gated under /api/plugins/reddit,
-    # which the operator bearer protects and kit.apiFetch() authenticates.
-    registry.register_router(router, prefix="/plugins/reddit")
 
-    data = APIRouter()
+    # ── Console view ────────────────────────────────────────────
+    try:
+        from .view import make_routers
 
-    @data.get("/hello")
-    async def _hello():
-        return JSONResponse({"message": "Hello from reddit!"})
-    registry.register_router(data, prefix="/api/plugins/reddit")
+        page_router, data_router = make_routers(api, cfg)
+        registry.register_router(page_router, prefix="/plugins/reddit")
+        registry.register_router(data_router, prefix="/api/plugins/reddit")
+    except Exception:
+        log.exception("Failed to register Reddit view routers")
 
-    # Event bus (ADR 0039) — coordinate without importing other plugins:
-    #   registry.emit("did_something", {"id": 1})   # → "reddit.did_something" on the bus
-    #   registry.on("other-plugin.*", lambda evt: ...) # react to anyone's events
+    # ── Skill directory ─────────────────────────────────────────
+    try:
+        registry.register_skill_dir("skills")
+    except Exception:
+        log.exception("Failed to register Reddit skills")
